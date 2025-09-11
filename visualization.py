@@ -94,9 +94,9 @@ sns.set_palette('colorblind')
 def plot_discrete_distribution_curve(
     values,
     probabilities=None,
-    title="离散概率分布曲线",
-    x_label="取值",
-    y_label="概率",
+    title="distribution",
+    x_label="node_id",
+    y_label="mass",
     color="green",
     fill_alpha=0.3,
     show_points=True,
@@ -145,14 +145,14 @@ def plot_discrete_distribution_curve(
     plt.figure(figsize=figsize)
     
     # 绘制阶梯曲线（mid参数使阶梯在x位置居中）
-    plt.step(x_extended, y_extended, where='mid', color=color, linewidth=2.5, label="概率质量函数")
+    plt.step(x_extended, y_extended, where='mid', color=color, linewidth=2.5, label="PMF")
     
     # 填充曲线下的区域（透明颜色）
     plt.fill_between(x_extended, y_extended, color=color, alpha=fill_alpha)
     
     # 显示离散点
     if show_points:
-        plt.scatter(x, y, color=color, s=50, zorder=3, label="离散点")
+        plt.scatter(x, y, color=color, s=50, zorder=3, label="scatter")
     
     # 设置图表属性
     plt.title(title, fontsize=14)
@@ -165,197 +165,157 @@ def plot_discrete_distribution_curve(
     plt.tight_layout()
     plt.show()
 
+def plot_line_chart(
+    x_data: List[np.ndarray],
+    y_data: List[np.ndarray],
+    labels: List[str],
+    title: str = "line",
+    x_label: str = "X",
+    y_label: str = "Y",
+    colors: Optional[List[str]] = None,
+    markers: Optional[List[str]] = None,
+    linestyles: Optional[List[str]] = None,
+    grid: bool = True,
+    legend: bool = True,
+    highlight_points: Optional[List[Tuple[int, str]]] = None,
+    figsize: Tuple[int, int] = (10, 6),
+    save_path: Optional[str] = None
+) -> None:
+    """
+    绘制折线图，支持多组数据、自定义样式和关键点标注
+    
+    参数:
+        x_data: X轴数据列表，每组数据对应一条折线
+        y_data: Y轴数据列表，与x_data一一对应
+        labels: 每条折线的标签列表
+        title: 图表标题
+        x_label: X轴标签
+        y_label: Y轴标签
+        colors: 每条折线的颜色列表，None则使用默认颜色
+        markers: 每条折线的标记样式列表
+        linestyles: 每条折线的线条样式列表
+        grid: 是否显示网格
+        legend: 是否显示图例
+        highlight_points: 要标注的关键点，格式为[(索引, 标注文本), ...]
+        figsize: 图表尺寸
+        save_path: 保存图表的路径，None则不保存
+    """
+    # 验证输入数据
+    if len(x_data) != len(y_data) or len(x_data) != len(labels):
+        raise ValueError("x_data, y_data和labels的长度必须一致")
+    
+    # 创建画布
+    plt.figure(figsize=figsize)
+    
+    # 绘制每条折线
+    for i in range(len(x_data)):
+        # 设置样式参数
+        color = colors[i] if colors and i < len(colors) else None
+        marker = markers[i] if markers and i < len(markers) else None
+        linestyle = linestyles[i] if linestyles and i < len(linestyles) else '-'
+        
+        # 绘制折线
+        plt.plot(
+            x_data[i], y_data[i],
+            label=labels[i],
+            color=color,
+            marker=marker,
+            linestyle=linestyle,
+            linewidth=2,
+            markersize=6
+        )
+    
+    # 标注关键点
+    if highlight_points:
+        for point in highlight_points:
+            idx, text = point
+            if 0 <= idx < len(x_data[0]) and len(x_data) == 1:  # 仅支持单组数据的关键点标注
+                plt.scatter(
+                    x_data[0][idx], y_data[0][idx],
+                    color='red',
+                    s=100,
+                    zorder=5
+                )
+                plt.annotate(
+                    text,
+                    xy=(x_data[0][idx], y_data[0][idx]),
+                    xytext=(10, 10),
+                    textcoords='offset points',
+                    arrowprops=dict(arrowstyle='->', color='black')
+                )
+    
+    # 设置图表属性
+    plt.title(title, fontsize=14, pad=20)
+    plt.xlabel(x_label, fontsize=12, labelpad=10)
+    plt.ylabel(y_label, fontsize=12, labelpad=10)
+    
+    # 设置网格
+    if grid:
+        plt.grid(True, linestyle='--', alpha=0.7)
+    
+    # 设置图例
+    if legend:
+        plt.legend(fontsize=10, loc='best')
+    
+    # 调整布局
+    plt.tight_layout()
+    
+    # 保存图表
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    
+    # 显示图表
+    plt.show()
 
-class DistributionVisualizer:
-    """概率分布可视化工具"""
-    
-    @staticmethod
-    def plot_discrete_distribution(
-        dist, 
-        title: str, 
-        x_label: str = "值", 
-        y_label: str = "概率",
-        x_range: Tuple[int, int] = None,
-        sample_size: int = 10000,
-        show_samples: bool = True
-    ) -> None:
-        """
-        可视化离散概率分布
-        
-        参数:
-            dist: scipy的离散分布对象（如stats.binom, stats.poisson）
-            title: 图表标题
-            x_label: x轴标签
-            y_label: y轴标签
-            x_range: x轴范围 (min, max)，None则自动计算
-            sample_size: 用于绘制直方图的样本量
-            show_samples: 是否显示样本直方图
-        """
-        # 确定x轴范围
-        if x_range is None:
-            # 生成样本并根据样本确定范围
-            samples = dist.rvs(size=sample_size)
-            x_min, x_max = min(samples), max(samples)
-            # 扩展一点范围使图表更美观
-            x_min = max(0, x_min - 2) if 'binom' in str(dist) else x_min - 2
-            x_max += 2
-        else:
-            x_min, x_max = x_range
-        
-        x = np.arange(x_min, x_max + 1)
-        pmf = dist.pmf(x)  # 概率质量函数
-        
-        # 创建画布
-        fig, ax = plt.subplots(figsize=(10, 6))
-        
-        # 绘制概率质量函数
-        ax.plot(x, pmf, 'bo', ms=8, label='PMF')
-        ax.vlines(x, 0, pmf, colors='b', lw=2)
-        
-        # 绘制样本直方图
-        if show_samples:
-            samples = dist.rvs(size=sample_size)
-            ax.hist(
-                samples, 
-                bins=np.arange(x_min, x_max + 2) - 0.5, 
-                density=True, 
-                alpha=0.3, 
-                color='b', 
-                label=f'{sample_size}个样本'
-            )
-        
-        # 设置图表属性
-        ax.set_title(title, fontsize=14)
-        ax.set_xlabel(x_label, fontsize=12)
-        ax.set_ylabel(y_label, fontsize=12)
-        ax.set_xlim(x_min - 0.5, x_max + 0.5)
-        ax.set_ylim(0, max(pmf) * 1.1)
-        ax.legend()
-        ax.grid(alpha=0.3)
-        
-        plt.tight_layout()
-        plt.show()
-    
-    @staticmethod
-    def plot_continuous_distribution(
-        dist, 
-        title: str, 
-        x_label: str = "值", 
-        y_label: str = "概率密度",
-        x_range: Tuple[float, float] = None,
-        sample_size: int = 10000,
-        show_samples: bool = True,
-        show_cdf: bool = True
-    ) -> None:
-        """
-        可视化连续概率分布
-        
-        参数:
-            dist: scipy的连续分布对象（如stats.norm, stats.expon）
-            title: 图表标题
-            x_label: x轴标签
-            y_label: y轴标签
-            x_range: x轴范围 (min, max)，None则自动计算
-            sample_size: 用于绘制直方图的样本量
-            show_samples: 是否显示样本直方图
-            show_cdf: 是否显示累积分布函数
-        """
-        # 确定x轴范围
-        if x_range is None:
-            # 使用分布的均值±3倍标准差作为范围
-            mean, std = dist.mean(), dist.std()
-            x_min, x_max = mean - 3 * std, mean + 3 * std
-        else:
-            x_min, x_max = x_range
-        
-        x = np.linspace(x_min, x_max, 1000)
-        pdf = dist.pdf(x)  # 概率密度函数
-        
-        # 创建画布
-        fig, ax1 = plt.subplots(figsize=(10, 6))
-        
-        # 绘制概率密度函数
-        ax1.plot(x, pdf, 'b-', lw=2, label='PDF')
-        
-        # 绘制样本直方图
-        if show_samples:
-            samples = dist.rvs(size=sample_size)
-            ax1.hist(
-                samples, 
-                bins=50, 
-                density=True, 
-                alpha=0.3, 
-                color='b', 
-                label=f'{sample_size}个样本'
-            )
-        
-        # 设置主坐标轴属性
-        ax1.set_title(title, fontsize=14)
-        ax1.set_xlabel(x_label, fontsize=12)
-        ax1.set_ylabel(y_label, fontsize=12, color='b')
-        ax1.set_xlim(x_min, x_max)
-        ax1.set_ylim(0, max(pdf) * 1.1)
-        ax1.tick_params(axis='y', labelcolor='b')
-        ax1.legend(loc='upper left')
-        ax1.grid(alpha=0.3)
-        
-        # 绘制累积分布函数（次要坐标轴）
-        if show_cdf:
-            ax2 = ax1.twinx()
-            cdf = dist.cdf(x)
-            ax2.plot(x, cdf, 'r--', lw=2, label='CDF')
-            ax2.set_ylabel('累积概率', fontsize=12, color='r')
-            ax2.set_ylim(0, 1.05)
-            ax2.tick_params(axis='y', labelcolor='r')
-            ax2.legend(loc='upper right')
-        
-        plt.tight_layout()
-        plt.show()
-
-def demonstrate_distributions():
-    """展示各种概率分布的可视化效果"""
-    # 1. 正态分布
-    norm_dist = stats.norm(loc=0, scale=1)  # 均值0，标准差1的正态分布
-    DistributionVisualizer.plot_continuous_distribution(
-        norm_dist,
-        title="标准正态分布 N(0, 1)",
+def demonstrate_line_charts():
+    """演示不同类型的折线图绘制"""
+    # 示例1：基本折线图
+    x = np.linspace(0, 10, 100)
+    y = np.sin(x)
+    plot_line_chart(
+        x_data=[x],
+        y_data=[y],
+        labels=["sin(x)"],
+        title="正弦函数曲线",
         x_label="x",
-        y_label="概率密度"
+        y_label="sin(x)",
+        markers=['o'],
+        linestyles=['-']
     )
     
-    # 2. 指数分布
-    expon_dist = stats.expon(scale=2)  # 尺度参数=2（均值=2）
-    DistributionVisualizer.plot_continuous_distribution(
-        expon_dist,
-        title="指数分布 Exp(λ=0.5)",
+    # 示例2：多组数据对比
+    x = np.arange(0, 20, 1)
+    y1 = np.random.randint(1, 10, size=20)
+    y2 = np.random.randint(1, 10, size=20)
+    y3 = np.random.randint(1, 10, size=20)
+    plot_line_chart(
+        x_data=[x, x, x],
+        y_data=[y1, y2, y3],
+        labels=["数据组A", "数据组B", "数据组C"],
+        title="多组数据折线图对比",
+        x_label="时间",
+        y_label="数值",
+        colors=['blue', 'green', 'red'],
+        markers=['s', '^', 'o'],
+        linestyles=['-', '--', '-.']
+    )
+    
+    # 示例3：带关键点标注的折线图
+    x = np.linspace(0, 5, 50)
+    y = x ** 2 - 4 * x + 5  # 二次函数
+    # 标注最小值点
+    min_idx = np.argmin(y)
+    plot_line_chart(
+        x_data=[x],
+        y_data=[y],
+        labels=["二次函数"],
+        title="带关键点标注的折线图",
         x_label="x",
-        x_range=(0, 10)
-    )
-    
-    # 3. 二项分布
-    binom_dist = stats.binom(n=10, p=0.5)  # n=10次试验，成功概率p=0.5
-    DistributionVisualizer.plot_discrete_distribution(
-        binom_dist,
-        title="二项分布 Binomial(n=10, p=0.5)",
-        x_label="成功次数"
-    )
-    
-    # 4. 泊松分布
-    poisson_dist = stats.poisson(mu=3)  # 均值=3
-    DistributionVisualizer.plot_discrete_distribution(
-        poisson_dist,
-        title="泊松分布 Poisson(λ=3)",
-        x_label="事件数"
-    )
-    
-    # 5. 均匀分布
-    uniform_dist = stats.uniform(loc=0, scale=10)  # [0, 10)区间的均匀分布
-    DistributionVisualizer.plot_continuous_distribution(
-        uniform_dist,
-        title="均匀分布 Uniform(0, 10)",
-        x_label="x"
+        y_label="f(x) = x² - 4x + 5",
+        highlight_points=[(min_idx, f"最小值: ({x[min_idx]:.2f}, {y[min_idx]:.2f})")],
+        colors=['purple']
     )
 
 if __name__ == "__main__":
-    demonstrate_distributions()
+    demonstrate_line_charts()
     

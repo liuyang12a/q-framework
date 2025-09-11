@@ -134,5 +134,21 @@ class SIR(QModel):
         super().__init__(states, graph)
         self.threshold = alpha/len(states)
 
+class SIRS(QModel):
+    def __init__(self, states, graph, lam, alpha, delta1, delta2):
+        if min(states)<=0:
+            x = 1-min(states)
+            new_states = [0]
+            for i in range(len(states)):
+                new_states.append(states[i]+x)
+            states = new_states
+        else:
+            states = [0] + states
+        
+        graph = graph*lam
+        graph = np.concat( (np.array([[delta1]]*(len(states)-1)), graph), axis=1)
+        graph = np.concat( (np.array([[delta2]*len(states)]), graph), axis=0)
 
+        super().__init__(states, graph)
+        self.threshold = alpha/len(states)
     
