@@ -5,6 +5,16 @@ from scipy.integrate import solve_ivp
 from scipy.linalg import null_space
 
 
+def check_generator_matrix(Q: np.ndarray) -> bool:
+    """验证生成器矩阵的合法性（每行和为0）"""
+    n = Q.shape[0]
+    if Q.shape != (n, n):
+        raise ValueError("生成器矩阵必须是方阵")
+    row_sums = np.sum(Q, axis=1)
+    if not np.allclose(row_sums, 0.0, atol=1e-9):
+        raise ValueError(f"生成器矩阵每行之和必须为0，实际行和：{row_sums}")
+    return True
+
 def kolmogorov_forward(Q: np.ndarray, t: float, method: str = 'RK45') -> np.ndarray:
     """
     用Kolmogorov前向方程求解状态转移矩阵P(t)
