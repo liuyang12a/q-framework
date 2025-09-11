@@ -1,21 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from collections import defaultdict
-import seaborn as sns
 from scipy.stats import expon
-
 from scipy.integrate import solve_ivp
-from typing import Tuple
+from scipy.linalg import null_space
 
-def check_generator_matrix(Q: np.ndarray) -> bool:
-    """验证生成器矩阵的合法性（每行和为0）"""
-    n = Q.shape[0]
-    if Q.shape != (n, n):
-        raise ValueError("生成器矩阵必须是方阵")
-    row_sums = np.sum(Q, axis=1)
-    if not np.allclose(row_sums, 0.0, atol=1e-9):
-        raise ValueError(f"生成器矩阵每行之和必须为0，实际行和：{row_sums}")
-    return True
 
 def kolmogorov_forward(Q: np.ndarray, t: float, method: str = 'RK45') -> np.ndarray:
     """
@@ -62,42 +50,74 @@ def kolmogorov_forward(Q: np.ndarray, t: float, method: str = 'RK45') -> np.ndar
     
     return P_t
 
-def example_usage():
-    """示例：求解简单CTMC的转移矩阵"""
-    # 1. 定义生成器矩阵Q（两状态模型：健康->患病->健康）
-    # Q = [
-    #   [-λ, λ],  # 状态0（健康）：以λ速率转移到状态1
-    #   [μ, -μ]   # 状态1（患病）：以μ速率转移到状态0
-    # ]
-    λ = 0.2  # 健康→患病的转移率
-    μ = 0.1  # 患病→健康的转移率
-    Q = np.array([
-        [-λ, λ],
-        [μ, -μ]
-    ])
+def ctmc_stationary_distribution(Q: np.ndarray, tol: float = 1e-10) -> np.ndarray:
+    """
+    求解连续时间马尔可夫链(CTMC)的平稳分布
     
-    # 2. 求解t=5时刻的转移矩阵
-    t = 5.0
-    P = kolmogorov_forward(Q, t, method='BDF')
+    参数:
+        Q: 生成器矩阵(shape=(n, n))
+        tol: 数值计算的容差
     
-    # 3. 输出结果
-    print(f"生成器矩阵Q:\n{Q}\n")
-    print(f"t={t}时刻的转移矩阵P(t):\n{P}\n")
-    print(f"验证每行和为1（概率归一化）：{P.sum(axis=1)}")
+    返回:
+        pi: 平稳分布向量(shape=(n,)), 满足pi @ Q = 0且sum(pi) = 1
+    """
+    # 验证输入矩阵
+    n = Q.shape[0]
+    if Q.shape != (n, n):
+        raise ValueError("生成器矩阵必须是方阵")
+    if not np.allclose(np.sum(Q, axis=1), 0.0, atol=tol):
+        raise ValueError("生成器矩阵每行之和必须为0")
     
-    # 4. 解析解对比（两状态模型有解析解）
-    def analytical_P(t):
-        a = (λ + μ) * t
-        p00 = (μ + λ * np.exp(-a)) / (λ + μ)
-        p01 = 1 - p00
-        p10 = (λ - λ * np.exp(-a)) / (λ + μ)
-        p11 = 1 - p10
-        return np.array([[p00, p01], [p10, p11]])
+    # 方法1: 求解零空间 (pi @ Q = 0)
+    # 计算Q的左零空间（行向量）
+    null = null_space(Q.T)  # 转置后求右零空间等价于原矩阵的左零空间
     
-    P_analytical = analytical_P(t)
-    print(f"\n解析解P(t):\n{P_analytical}")
-    print(f"数值解与解析解误差：{np.linalg.norm(P - P_analytical)}")
+    # 零空间应该是一维的（对于不可约CTMC）
+    if null.shape[1] != 1:
+        raise ValueError("生成器矩阵的零空间维度不为1，可能不满足不可约性条件")
+    
+    # 提取零空间向量并归一化
+    pi = null.flatten()
+    pi = pi / np.sum(pi)
+    
+    # 确保所有元素为正（平稳分布应为概率分布）
+    if np.any(pi < -tol):
+        raise ValueError("计算得到的平稳分布包含负值，可能矩阵不满足正常返条件")
+    pi = np.maximum(pi, 0.0)  # 处理数值误差导致的微小负值
+    pi = pi / np.sum(pi)  # 重新归一化
+    
+    return pi
 
+def power_iteration_method(Q: np.ndarray, tol: float = 1e-10, max_iter: int = 10000) -> np.ndarray:
+    """
+    用幂迭代法求解平稳分布（通过矩阵指数近似）
+    
+    参数:
+        Q: 生成器矩阵
+        tol: 收敛容差
+        max_iter: 最大迭代次数
+    
+    返回:
+        pi: 平稳分布向量
+    """
+    n = Q.shape[0]
+    # 初始化概率分布（均匀分布）
+    pi = np.ones(n) / n
+    # 使用一个较大的时间步长近似极限分布
+    # 这里使用矩阵指数的近似迭代: P(t) = exp(Qt)
+    # 迭代公式: pi_{k+1} = pi_k @ (I + Q*dt)
+    
+    dt = 0.1  # 时间步长
+    P = np.eye(n) + Q * dt  # 转移矩阵近似
+    
+    for _ in range(max_iter):
+        pi_new = pi @ P
+        pi_new = pi_new / np.sum(pi_new)  # 归一化
+        if np.linalg.norm(pi_new - pi) < tol:
+            return pi_new
+        pi = pi_new
+    
+    raise RuntimeError(f"幂迭代法在{max_iter}次迭代后未收敛")
 
 class ContinuousTimeMarkovChain:
     """连续时间马尔可夫链(CTMC)实现"""
@@ -274,41 +294,3 @@ class ContinuousTimeMarkovChain:
         plt.tight_layout()
         plt.show()
 
-# 示例使用
-if __name__ == "__main__":
-    # 定义状态
-    states = ["健康", "患病", "康复", "死亡"]
-    
-    # 定义生成器矩阵(Q矩阵)
-    # Q[i][j]表示从状态i到状态j的转移率(i≠j)
-    generator = [
-        # 健康 -> 健康(负和), 患病, 康复, 死亡
-        [-0.05, 0.04, 0.0, 0.01],
-        # 患病 -> 健康, 患病(负和), 康复, 死亡
-        [0.02, -0.1, 0.07, 0.01],
-        # 康复 -> 健康, 患病, 康复(负和), 死亡
-        [0.03, 0.02, -0.06, 0.01],
-        # 死亡 -> 所有转移率为0(吸收态)
-        [0.0, 0.0, 0.0, 0.0]
-    ]
-    
-    # 创建CTMC模型
-    ctmc = ContinuousTimeMarkovChain(states, generator)
-    
-    # 可视化转移率矩阵
-    ctmc.visualize_transition_rates()
-    
-    # 模拟过程
-    time_points, states_sequence = ctmc.simulate(
-        initial_state="健康", 
-        max_time=100
-    )
-    
-    # 可视化模拟结果
-    ctmc.visualize_simulation(time_points, states_sequence)
-    
-    # 计算平稳分布
-    stationary_dist = ctmc.stationary_distribution()
-    print("平稳分布:")
-    for state, prob in stationary_dist.items():
-        print(f"  {state}: {prob:.4f}")
