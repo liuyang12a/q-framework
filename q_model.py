@@ -65,6 +65,7 @@ class QModel:
         self.states = states
         self.num_states = len(states)
         self.state_index = {state: i for i, state in enumerate(states)}
+        self.params = {}
         
         # 验证生成器矩阵
         self.Q = np.array(Q)
@@ -93,6 +94,12 @@ class QModel:
         self.set_cycle_stride(cycle_time)
         spreading_state = init_spreading_state
 
+        self.params.update({
+            "max_time": max_time,
+            "cycle_time": cycle_time,
+            "steps": steps
+        })
+
         spreading_dynamics = []
         for _ in range(int(steps)):
             spreading_state = self.forward(spreading_state)
@@ -116,17 +123,14 @@ class SI(QModel):
         super().__init__(states, graph*lam)
         self.threshold = alpha/len(states)
 
+        self.params.update({
+            "lambda": lam,
+            "alpha": alpha
+        })
+
 class SIR(QModel):
     def __init__(self, states, graph, lam, alpha, delta1):
-        if min(states)<=0:
-            x = 1-min(states)
-            new_states = [0]
-            for i in range(len(states)):
-                new_states.append(states[i]+x)
-            states = new_states
-        else:
-            states = [0] + states
-        
+        states = ['#0'] + states
         graph = graph*lam
         graph = np.concat( (np.array([[delta1]]*(len(states)-1)), graph), axis=1)
         graph = np.concat( (np.array([[0.0]*len(states)]), graph), axis=0)
@@ -134,21 +138,26 @@ class SIR(QModel):
         super().__init__(states, graph)
         self.threshold = alpha/len(states)
 
+        self.params.update({
+            "lambda": lam,
+            "alpha": alpha,
+            "delta1": delta1
+        })
+
 class SIRS(QModel):
     def __init__(self, states, graph, lam, alpha, delta1, delta2):
-        if min(states)<=0:
-            x = 1-min(states)
-            new_states = [0]
-            for i in range(len(states)):
-                new_states.append(states[i]+x)
-            states = new_states
-        else:
-            states = [0] + states
-        
+        states = ['#0'] + states
         graph = graph*lam
         graph = np.concat( (np.array([[delta1]]*(len(states)-1)), graph), axis=1)
         graph = np.concat( (np.array([[delta2]*len(states)]), graph), axis=0)
 
         super().__init__(states, graph)
         self.threshold = alpha/len(states)
+
+        self.params.update({
+            "lambda": lam,
+            "alpha": alpha,
+            "delta1": delta1,
+            "delta2": delta2
+        })
     

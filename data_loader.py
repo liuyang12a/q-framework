@@ -1,6 +1,7 @@
 import csv
 import networkx as nx
 import json
+import numpy as np
 import os
 from typing import Any, Dict, List, Optional, Union
 
@@ -66,6 +67,20 @@ def load_json_file(
         解析后的JSON数据，或默认值（如果加载失败）
     """
     # 检查文件是否存在
+    def _deserialize(obj: Any) -> Any:
+            if not isinstance(obj, dict):
+                return obj
+            
+            # 处理序列化的ndarray
+            if '_type' in obj and obj['_type'] == 'ndarray':
+                return np.array(
+                    obj['data'],
+                    dtype=obj['dtype']
+                ).reshape(obj['shape'])
+            
+            # 递归处理其他字典
+            return {k: _deserialize(v) for k, v in obj.items()}
+
     if not os.path.exists(file_path):
         if default is not None:
             return default
@@ -80,7 +95,7 @@ def load_json_file(
     try:
         # 尝试加载并解析JSON文件
         with open(file_path, 'r', encoding=encoding) as f:
-            return json.load(f)
+            return json.load(f,object_hook=_deserialize)
     
     except json.JSONDecodeError as e:
         print(f"JSON解析错误 in {file_path}: {str(e)}")
@@ -116,6 +131,26 @@ def save_to_json(
     返回:
         保存成功返回True，否则返回False
     """
+    def _serialize(obj: Any) -> Any:
+            # 处理ndarray类型
+            if isinstance(obj, np.ndarray):
+                return {
+                    '_type': 'ndarray',
+                    'dtype': str(obj.dtype),
+                    'shape': obj.shape,
+                    'data': obj.tolist()
+                }
+            # 处理其他NumPy标量类型
+            elif isinstance(obj, np.generic):
+                return obj.item()
+            # 处理列表和元组
+            elif isinstance(obj, (list, tuple)):
+                return [_serialize(item) for item in obj]
+            # 处理字典
+            elif isinstance(obj, dict):
+                return {k: _serialize(v) for k, v in obj.items()}
+            # 其他类型直接返回
+            return obj
     try:
         # 确保目录存在
         if create_dir:
@@ -126,7 +161,7 @@ def save_to_json(
         # 写入JSON文件
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(
-                data,
+                _serialize(data),
                 f,
                 indent=indent,
                 sort_keys=sort_keys,
@@ -138,6 +173,7 @@ def save_to_json(
     except IOError as e:
         print(f"文件写入错误: {str(e)}")
     return False
+
 
 
 class JSONDataSaver:
