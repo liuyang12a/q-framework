@@ -98,9 +98,11 @@ def plot_discrete_distribution_curve(
     x_label="node_id",
     y_label="mass",
     color="green",
+    color_group = None,
     fill_alpha=0.3,
     show_points=True,
-    figsize=(10, 6)
+    figsize=(10, 6),
+    fixed_lim=False
 ):
     """
     用阶梯曲线展示离散概率分布，并填充曲线下区域
@@ -152,14 +154,26 @@ def plot_discrete_distribution_curve(
     
     # 显示离散点
     if show_points:
-        plt.scatter(x, y, color=color, s=50, zorder=3, label="scatter")
+        if color_group is not None:
+            group, colors = color_group
+            for label, idx_group in group.items():
+                xg = [x[i] for i in idx_group]
+                yg = [y[i] for i in idx_group]
+                plt.scatter(xg, yg, color=colors[label], s=50, zorder=3, label=label)
+        else:
+            plt.scatter(x, y, color=color, s=50, zorder=3, label="scatter")
+
+    
     
     # 设置图表属性
     plt.title(title, fontsize=14)
     plt.xlabel(x_label, fontsize=12)
     plt.ylabel(y_label, fontsize=12)
     plt.xlim(x_extended[0], x_extended[-1])
-    plt.ylim(0, max(y) * 1.1)
+    if fixed_lim:
+        plt.ylim(0,1)
+    else:
+        plt.ylim(0, max(y) * 1.1)
     plt.grid(axis='y', alpha=0.3)
     plt.legend()
     plt.tight_layout()
@@ -179,7 +193,9 @@ def plot_line_chart(
     legend: bool = True,
     highlight_points: Optional[List[Tuple[int, str]]] = None,
     figsize: Tuple[int, int] = (10, 6),
-    save_path: Optional[str] = None
+    save_path: Optional[str] = None,
+    log_x=False,
+    log_y=False
 ) -> None:
     """
     绘制折线图，支持多组数据、自定义样式和关键点标注
@@ -248,6 +264,11 @@ def plot_line_chart(
     plt.title(title, fontsize=14, pad=20)
     plt.xlabel(x_label, fontsize=12, labelpad=10)
     plt.ylabel(y_label, fontsize=12, labelpad=10)
+
+    if log_x:
+        plt.xscale('log')
+    if log_y:
+        plt.yscale('log')
     
     # 设置网格
     if grid:
@@ -266,56 +287,3 @@ def plot_line_chart(
     
     # 显示图表
     plt.show()
-
-def demonstrate_line_charts():
-    """演示不同类型的折线图绘制"""
-    # 示例1：基本折线图
-    x = np.linspace(0, 10, 100)
-    y = np.sin(x)
-    plot_line_chart(
-        x_data=[x],
-        y_data=[y],
-        labels=["sin(x)"],
-        title="正弦函数曲线",
-        x_label="x",
-        y_label="sin(x)",
-        markers=['o'],
-        linestyles=['-']
-    )
-    
-    # 示例2：多组数据对比
-    x = np.arange(0, 20, 1)
-    y1 = np.random.randint(1, 10, size=20)
-    y2 = np.random.randint(1, 10, size=20)
-    y3 = np.random.randint(1, 10, size=20)
-    plot_line_chart(
-        x_data=[x, x, x],
-        y_data=[y1, y2, y3],
-        labels=["数据组A", "数据组B", "数据组C"],
-        title="多组数据折线图对比",
-        x_label="时间",
-        y_label="数值",
-        colors=['blue', 'green', 'red'],
-        markers=['s', '^', 'o'],
-        linestyles=['-', '--', '-.']
-    )
-    
-    # 示例3：带关键点标注的折线图
-    x = np.linspace(0, 5, 50)
-    y = x ** 2 - 4 * x + 5  # 二次函数
-    # 标注最小值点
-    min_idx = np.argmin(y)
-    plot_line_chart(
-        x_data=[x],
-        y_data=[y],
-        labels=["二次函数"],
-        title="带关键点标注的折线图",
-        x_label="x",
-        y_label="f(x) = x² - 4x + 5",
-        highlight_points=[(min_idx, f"最小值: ({x[min_idx]:.2f}, {y[min_idx]:.2f})")],
-        colors=['purple']
-    )
-
-if __name__ == "__main__":
-    demonstrate_line_charts()
-    

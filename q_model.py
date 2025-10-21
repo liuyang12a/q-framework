@@ -119,8 +119,10 @@ class QModel:
         return spreading_dynamics, distances
 
 class SI(QModel):
-    def __init__(self, states, graph, lam, alpha):
-        super().__init__(states, graph*lam)
+    def __init__(self, states, graph, alpha, lam=None):
+        if lam is not None:
+            graph = graph*lam
+        super().__init__(states, graph)
         self.threshold = alpha/len(states)
 
         self.params.update({
@@ -129,11 +131,15 @@ class SI(QModel):
         })
 
 class SIR(QModel):
-    def __init__(self, states, graph, lam, alpha, delta1):
-        states = ['#0'] + states
-        graph = graph*lam
-        graph = np.concat( (np.array([[delta1]]*(len(states)-1)), graph), axis=1)
-        graph = np.concat( (np.array([[0.0]*len(states)]), graph), axis=0)
+    def __init__(self, states, graph, alpha, delta1, lam=None):
+        if isinstance(states, range):
+            states = list(states)
+     
+        states.append('#0')
+        if lam is not None:
+            graph = graph*lam
+        graph = np.concat( (graph, np.array([[delta1]]*(len(states)-1))), axis=1)
+        graph = np.concat( (graph, np.array([[0.0]*len(states)])), axis=0)
 
         super().__init__(states, graph)
         self.threshold = alpha/len(states)
@@ -145,11 +151,15 @@ class SIR(QModel):
         })
 
 class SIRS(QModel):
-    def __init__(self, states, graph, lam, alpha, delta1, delta2):
-        states = ['#0'] + states
-        graph = graph*lam
-        graph = np.concat( (np.array([[delta1]]*(len(states)-1)), graph), axis=1)
-        graph = np.concat( (np.array([[delta2]*len(states)]), graph), axis=0)
+    def __init__(self, states, graph, alpha, delta1, delta2, lam=None):
+        if isinstance(states, range):
+            states = list(states)
+
+        states.append('#0')
+        if lam is not None:
+            graph = graph*lam
+        graph = np.concat( (graph, np.array([[delta1]]*(len(states)-1))), axis=1)
+        graph = np.concat( (graph, np.array([[delta2]*len(states)])), axis=0)
 
         super().__init__(states, graph)
         self.threshold = alpha/len(states)
@@ -160,4 +170,3 @@ class SIRS(QModel):
             "delta1": delta1,
             "delta2": delta2
         })
-    
