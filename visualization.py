@@ -96,13 +96,15 @@ def plot_discrete_distribution_curve(
     probabilities=None,
     title="distribution",
     x_label="node_id",
-    y_label="mass",
+    y_label="probability mass",
     color="green",
     color_group = None,
     fill_alpha=0.3,
     show_points=True,
     figsize=(10, 6),
-    fixed_lim=False
+    fixed_lim=False,
+    y_lim=1.0,
+    legend_ncol=1,
 ):
     """
     用阶梯曲线展示离散概率分布，并填充曲线下区域
@@ -167,15 +169,15 @@ def plot_discrete_distribution_curve(
     
     # 设置图表属性
     plt.title(title, fontsize=14)
-    plt.xlabel(x_label, fontsize=12)
-    plt.ylabel(y_label, fontsize=12)
+    plt.xlabel(x_label, fontsize=30)
+    plt.ylabel(y_label, fontsize=30)
     plt.xlim(x_extended[0], x_extended[-1])
     if fixed_lim:
-        plt.ylim(0,1)
+        plt.ylim(0,y_lim)
     else:
         plt.ylim(0, max(y) * 1.1)
     plt.grid(axis='y', alpha=0.3)
-    plt.legend()
+    plt.legend(fontsize=20,loc='best',ncol=legend_ncol)
     plt.tight_layout()
     plt.show()
 
@@ -189,11 +191,13 @@ def plot_line_chart(
     colors: Optional[List[str]] = None,
     markers: Optional[List[str]] = None,
     linestyles: Optional[List[str]] = None,
+    linewidth=4,
     grid: bool = True,
     legend: bool = True,
     highlight_points: Optional[List[Tuple[int, str]]] = None,
     figsize: Tuple[int, int] = (10, 6),
     save_path: Optional[str] = None,
+    legend_ncol=1,
     log_x=False,
     log_y=False
 ) -> None:
@@ -237,7 +241,7 @@ def plot_line_chart(
             color=color,
             marker=marker,
             linestyle=linestyle,
-            linewidth=2,
+            linewidth=linewidth,
             markersize=6
         )
     
@@ -262,8 +266,8 @@ def plot_line_chart(
     
     # 设置图表属性
     plt.title(title, fontsize=14, pad=20)
-    plt.xlabel(x_label, fontsize=12, labelpad=10)
-    plt.ylabel(y_label, fontsize=12, labelpad=10)
+    plt.xlabel(x_label, fontsize=30, labelpad=10)
+    plt.ylabel(y_label, fontsize=25, labelpad=10)
 
     if log_x:
         plt.xscale('log')
@@ -276,7 +280,7 @@ def plot_line_chart(
     
     # 设置图例
     if legend:
-        plt.legend(fontsize=10, loc='best')
+        plt.legend(fontsize=20, loc='upper right',ncol=legend_ncol)
     
     # 调整布局
     plt.tight_layout()

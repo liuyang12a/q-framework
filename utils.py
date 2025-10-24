@@ -42,6 +42,28 @@ def sample_inverse_gamma(shape: float, scale: float, size: int = 1) -> np.ndarra
     samples = invgamma.rvs(a=shape, scale=scale, size=size)
     return samples
 
+
+def sample_normal_numpy(mean: float = 0, std: float = 1, size: int = 1) -> np.ndarray:
+    """
+    使用numpy从正态分布中采样
+    
+    参数:
+        mean: 正态分布的均值（μ），默认0
+        std: 正态分布的标准差（σ），默认1（标准正态分布）
+        size: 采样数量，默认1
+    
+    返回:
+        采样结果的numpy数组
+    """
+    if std <= 0:
+        raise ValueError("标准差必须大于0")
+    if size <= 0:
+        raise ValueError("采样数量必须为正整数")
+    
+    # 从正态分布N(mean, std²)中采样
+    samples = np.random.normal(loc=mean, scale=std, size=size)
+    return samples
+
 def dict_to_single_line_text(
     d: Dict[Any, Any],
     format_type: str = "key_value",
